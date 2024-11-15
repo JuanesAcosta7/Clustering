@@ -1,0 +1,74 @@
+import pandas as pd  # Importa la biblioteca Pandas para trabajar con datos tabulares.
+import matplotlib.pyplot as plt  # Importa Matplotlib para crear gráficos.
+
+from sklearn.preprocessing import StandardScaler  # Importa StandardScaler para escalar los datos.
+from sklearn.cluster import KMeans  # Importa KMeans para realizar agrupamiento.
+
+# Lee el archivo CSV y establece la columna 'DEPTH_MD' como índice del DataFrame.
+df = pd.read_csv('/content/force2020_data_unsupervised_learning.csv', index_col='DEPTH_MD')
+
+df  # Muestra el DataFrame para verificar que los datos se hayan cargado correctamente.
+
+df.dropna(inplace=True)  # Elimina todas las filas que contengan valores nulos.
+df.describe()  # Muestra estadísticas descriptivas de las columnas numéricas del DataFrame.
+
+scaler = StandardScaler()  # Crea un objeto StandardScaler para normalizar los datos.
+
+# Escala las columnas 'RHOB', 'GR', 'NPHI', 'PEF', 'DTC' y guarda los valores escalados en nuevas columnas.
+df[['RHOB_T', 'NPHI_T', 'GR_T', 'PEF_T', 'DTC_T']] = scaler.fit_transform(df[['RHOB', 'GR', 'NPHI', 'PEF', 'DTC']])
+
+df  # Muestra el DataFrame actualizado con las columnas escaladas.
+
+# Define una función para optimizar el número de clusters utilizando el método del codo.
+def optimise_k_means(data, max_k):
+    means = []  # Lista para almacenar los números de clusters probados.
+    inertias = []  # Lista para almacenar las inercias de cada modelo KMeans.
+
+    for k in range(1, max_k):  # Itera sobre valores de k desde 1 hasta max_k - 1.
+        kmeans = KMeans(n_clusters=k)  # Crea un modelo KMeans con k clusters.
+        kmeans.fit(data)  # Ajusta el modelo a los datos.
+
+        means.append(k)  # Almacena el número de clusters.
+        inertias.append(kmeans.inertia_)  # Almacena la inercia del modelo.
+
+        # Grafica el número de clusters contra la inercia.
+        fig = plt.subplots(figsize=(10, 5))
+        plt.plot(means, inertias, 'o-')
+        plt.xlabel('number of clusters')  # Etiqueta del eje x.
+        plt.ylabel('inertia')  # Etiqueta del eje y.
+        plt.grid(True)  # Activa una cuadrícula en el gráfico.
+        plt.show()  # Muestra el gráfico.
+
+# Llama a la función para encontrar el número óptimo de clusters usando las columnas escaladas 'RHOB_T' y 'NPHI_T'.
+optimise_k_means(df[['RHOB_T', 'NPHI_T']], 10)
+
+kmeans = KMeans(n_clusters=3)  # Crea un modelo KMeans con 3 clusters.
+kmeans.fit(df[['NPHI_T', 'RHOB_T']])  # Ajusta el modelo a las columnas escaladas 'NPHI_T' y 'RHOB_T'.
+
+df['kmeans_3'] = kmeans.labels_  # Agrega una nueva columna al DataFrame con las etiquetas de los clusters.
+
+df  # Muestra el DataFrame actualizado con las etiquetas de los clusters.
+
+# Crea un gráfico de dispersión de 'NPHI' contra 'RHOB', coloreado por las etiquetas de los clusters.
+plt.scatter(x=df['NPHI'], y=df['RHOB'], c=df['kmeans_3'])
+plt.xlim(-0.1, 1)  # Establece los límites del eje x.
+plt.ylim(3, 1.5)  # Establece los límites del eje y.
+plt.show()  # Muestra el gráfico.
+
+# Itera sobre diferentes números de clusters para ajustar modelos y guardar las etiquetas.
+for k in range(1, 6):
+    kmeans = KMeans(n_clusters=k)  # Crea un modelo KMeans con k clusters.
+    kmeans.fit(df[['RHOB_T', 'NPHI_T']])  # Ajusta el modelo a las columnas escaladas.
+    df[f'kmeans_{k}'] = kmeans.labels_  # Agrega una nueva columna con las etiquetas de los clusters.
+
+df  # Muestra el DataFrame actualizado con las etiquetas de clusters para diferentes valores de k.
+
+# Crea una figura con 5 subgráficos, uno para cada número de clusters.
+fig, axs = plt.subplots(nrows=1, ncols=5, figsize=(15, 10))
+
+# Itera sobre cada eje de la figura y crea gráficos de dispersión.
+for i, ax in enumerate(fig.axes, start=1):
+    ax.scatter(x=df['NPHI'], y=df['RHOB'], c=df[f'kmeans_{i}'])  # Grafica 'NPHI' contra 'RHOB' coloreado por clusters.
+    ax.set_xlim(-0, 1)  # Establece los límites del eje x.
+    ax.set_ylim(3, 1.5)  # Establece los límites del eje y.
+    ax.set_title(f'N Clusters = {i}')  # Establece el título del subgráfico con el número de clusters.
